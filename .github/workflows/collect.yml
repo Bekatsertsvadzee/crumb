@@ -2,10 +2,14 @@ name: crumb-collector
 
 # Cookie Chain has no price history API. This job builds one.
 # Every gap here is a permanent hole in the chart — do not disable.
+#
+# GitHub fires a */5 schedule every 12–16 minutes in practice, so each job runs the
+# collector three times, five minutes apart. The 5m bucket is computed server-side from
+# ingest time, so every run lands in its own slot.
 on:
   schedule:
-    - cron: '*/5 * * * *'   # every 5 minutes (GitHub's minimum)
-  workflow_dispatch:         # manual run button
+    - cron: '*/5 * * * *'
+  workflow_dispatch:         # manual run button (single pass)
 
 concurrency:
   group: crumb-collector
@@ -14,7 +18,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 14
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,4 +29,13 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           MIN_LIQUIDITY_USD: '0'
-        run: node scripts/collect.mjs
+          PASSES: ${{ github.event_name == 'schedule' && '3' || '1' }}
+        run: |
+          failed=0
+          for i in $(seq 1 "$PASSES"); do
+            echo "::group::pass $i of $PASSES — $(date -u +%H:%M:%S)"
+            node scripts/collect.mjs || failed=1
+            echo "::endgroup::"
+            if [ "$i" -lt "$PASSES" ]; then sleep 300; fi
+          done
+          exit $failed
