@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import TokenIcon from '@/components/TokenIcon';
 import type { TokenRow } from '@/lib/db';
 import { fmtInt, fmtPct, fmtPrice, fmtUsd, shortAddr } from '@/lib/format';
 
@@ -143,12 +144,7 @@ export default function Screener({ tokens }: { tokens: TokenRow[] }) {
                     <td className="rank">{i + 1}</td>
                     <td className="tok">
                       <Link href={`/token/${t.mint}`} className="tok-cell">
-                        {t.image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img className="tok-img" src={t.image_url} alt="" loading="lazy" />
-                        ) : (
-                          <span className="tok-img-ph">{sym.slice(0, 2).toUpperCase()}</span>
-                        )}
+                        <TokenIcon src={t.image_url} symbol={sym} />
                         <span>
                           <span className="tok-sym">{sym}</span>
                           {t.name && t.name !== t.symbol && <span className="tok-name">{t.name}</span>}
