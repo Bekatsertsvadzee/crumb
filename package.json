@@ -1,0 +1,13 @@
+{
+  "name": "crumb",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Analytics and trading terminal for Cookie Chain — the only source of price history on the chain.",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "collect": "node scripts/collect.mjs",
+    "collect:test": "node scripts/__selftest.mjs"
+  }
+}
