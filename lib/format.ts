@@ -72,3 +72,17 @@ export function timeAgo(iso: string | null | undefined): string {
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
 }
+
+export function fmtAmount(v: number | null | undefined, maxDigits = 4): string {
+  if (v == null || !Number.isFinite(v)) return '—';
+  if (v >= 1e9) return (v / 1e9).toFixed(2) + 'B';
+  if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+  if (v >= 1e4) return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  return v.toLocaleString('en-US', { maximumFractionDigits: maxDigits });
+}
+
+export function fmtShare(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return '—';
+  if (v > 0 && v < 0.01) return '<0.01%';
+  return v.toFixed(2) + '%';
+}

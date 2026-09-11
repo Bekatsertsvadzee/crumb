@@ -68,3 +68,80 @@ export async function getChainStats(): Promise<{ latest: ChainStats | null; firs
   if (latest.error) throw new Error(`chain_stats_5m: ${latest.error.message}`);
   return { latest: latest.data, first: first.data };
 }
+
+export type MarketRow = {
+  market_id: string;
+  type: string | null;
+  base_mint: string | null;
+  base_symbol: string | null;
+  base_amount: number | null;
+  base_price_usd: number | null;
+  quote_mint: string | null;
+  quote_symbol: string | null;
+  quote_amount: number | null;
+  liquidity_usd: number | null;
+  first_seen_at: string;
+  updated_at: string;
+};
+
+export type Candle = {
+  bucket: string;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  liquidity_usd: number | null;
+  samples: number;
+};
+
+export async function getToken(mint: string): Promise<TokenRow | null> {
+  const { data, error } = await db
+    .from('token_state')
+    .select(
+      'mint,price_usd,price_in_cook,liquidity_usd,market_cap,volume_24h,price_change_24h,holder_count,supply,pool_count,updated_at,' +
+        'tokens!inner(symbol,name,decimals,image_url,category,curated,liquidity_tier,first_seen_at)',
+    )
+    .eq('mint', mint)
+    .maybeSingle<StateRow & { tokens: MetaRow }>();
+  if (error) throw new Error(`token_state: ${error.message}`);
+  if (!data) return null;
+  const { tokens, ...state } = data;
+  return { ...state, ...tokens };
+}
+
+export async function getPools(mint: string): Promise<MarketRow[]> {
+  const { data, error } = await db
+    .from('markets')
+    .select('*')
+    .or(`base_mint.eq.${mint},quote_mint.eq.${mint}`)
+    .order('liquidity_usd', { ascending: false, nullsFirst: false })
+    .returns<MarketRow[]>();
+  if (error) throw new Error(`markets: ${error.message}`);
+  return data ?? [];
+}
+
+export async function getCandles(mint: string, tf: '5m' | '1h'): Promise<Candle[]> {
+  const { data, error } = await db
+    .from(tf === '5m' ? 'candles_5m' : 'candles_1h')
+    .select('bucket,o,h,l,c,liquidity_usd,samples')
+    .eq('mint', mint)
+    .order('bucket', { ascending: true })
+    .limit(5000)
+    .returns<Candle[]>();
+  if (error) throw new Error(`candles_${tf}: ${error.message}`);
+  return data ?? [];
+}
+
+export async function getStates(mints: string[]): Promise<Map<string, TokenRow>> {
+  if (mints.length === 0) return new Map();
+  const { data, error } = await db
+    .from('token_state')
+    .select(
+      'mint,price_usd,price_in_cook,liquidity_usd,market_cap,volume_24h,price_change_24h,holder_count,supply,pool_count,updated_at,' +
+        'tokens!inner(symbol,name,decimals,image_url,category,curated,liquidity_tier,first_seen_at)',
+    )
+    .in('mint', mints)
+    .returns<(StateRow & { tokens: MetaRow })[]>();
+  if (error) throw new Error(`token_state: ${error.message}`);
+  return new Map((data ?? []).map(({ tokens, ...state }) => [state.mint, { ...state, ...tokens }]));
+}
